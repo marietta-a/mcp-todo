@@ -28,7 +28,8 @@ class TodoDataManager:
         """UPDATE: Changes the text of a task."""
         for task in self._tasks:
             if task.id == todo.id:
-                task = todo.clone()
+                task.description = todo.description
+                task.completed = todo.completed
                 return True
         return False
 
