@@ -1,43 +1,45 @@
+from todo_model import TodoModel
+
 # --- CRUD LOGIC CLASS (THE MODEL) ---
 class TodoDataManager:
     """Handles all CRUD operations independently of the UI."""
     def __init__(self):
-        self._tasks = []
-        self._next_id = 1
+        self._tasks: list[TodoModel] = []
+        self._next_id = 0
         # Seed initial data
-        self.add_task("Buy groceries")
-        self.add_task("Call mom")
-        self.add_task("Walk the dog", completed=True)
+        self.add_task(TodoModel(id=self._next_id, description="Buy groceries", completed=False))
+        self.add_task(TodoModel(id=self._next_id, description="Call mom", completed=False))
+        self.add_task(TodoModel(id=self._next_id, description="Walk the dog", completed=True))
 
-    def add_task(self, text, completed=False):
+    def add_task(self, todo: TodoModel):
         """CREATE: Adds a new task."""
-        if text.strip():
-            task = {"id": self._next_id, "text": text.strip(), "completed": completed}
-            self._tasks.append(task)
+        if todo.description.strip():
+            todo.id = self._next_id
+            self._tasks.append(todo)
             self._next_id += 1
-            return task
+            return todo
         return None
 
     def get_all_tasks(self):
         """READ: Returns all tasks."""
         return self._tasks
 
-    def update_task_text(self, task_id, new_text):
+    def update_task(self, todo: TodoModel):
         """UPDATE: Changes the text of a task."""
         for task in self._tasks:
-            if task['id'] == task_id:
-                task['text'] = new_text
+            if task.id == todo.id:
+                task = todo.clone()
                 return True
         return False
 
     def toggle_task_status(self, task_id):
         """UPDATE: Toggles completed status."""
         for task in self._tasks:
-            if task['id'] == task_id:
-                task['completed'] = not task['completed']
+            if task.id == task_id:
+                task.completed = not task.completed
                 return True
         return False
 
     def delete_task(self, task_id):
         """DELETE: Removes a task."""
-        self._tasks = [t for t in self._tasks if t['id'] != task_id]
+        self._tasks = [t for t in self._tasks if t.id != task_id]
