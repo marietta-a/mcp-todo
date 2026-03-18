@@ -10,7 +10,7 @@ from mcp.shared.context import RequestContext
 # Create server parameters for stdio connection
 server_params = StdioServerParameters(
     command="python",
-    args=["-m", "server.tool_service"]
+    args=["-m", "server.todo_service"]
 )
 
 async def run():
@@ -31,6 +31,7 @@ async def run():
                 }
             )
             print(f"Result of add tool: {result}")
+
             update_result = await session.call_tool(
                 name="update", 
                 arguments={
@@ -40,8 +41,10 @@ async def run():
                 }
             )
             print(f"Result of update tool: {update_result}")
+
             list_result = await session.call_tool(
-                name="list"
+                name="list",
+                arguments={}
             )
             print(f"Result of list tool: {list_result}")
 

@@ -10,7 +10,7 @@ async def task_list_handler(args) -> list[TodoModel]:
         raise ValueError(f"Invalid input: {str(e)}")
     
     """Handle task listings"""
-    return db.get_all_tasks(input_model)
+    return db.get_all_tasks()
 
 list_all = {
     "name": "list",
