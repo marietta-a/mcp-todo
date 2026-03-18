@@ -1,19 +1,20 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 
-from python.constants import Colors
+from constants import Colors
 from todo_manager import TodoDataManager
+from todo_model import TodoModel
 
 class TaskItem(tk.Frame):
     """Component for a single task row."""
-    def __init__(self, parent, task_data, callbacks):
+    def __init__(self, parent, task_data: TodoModel, callbacks):
         super().__init__(parent, bg=Colors.BG)
         self.task_data = task_data
         # Dictionary of function references
         self.callbacks = callbacks 
         self.pack(fill="x", padx=25, pady=2)
 
-        is_done = task_data['completed']
+        is_done = task_data.completed
         item_font = ("Segoe UI", 12, "overstrike") if is_done else ("Segoe UI", 12)
         fg_color = Colors.TEXT_DATE if is_done else Colors.TEXT_SUB
         check_char = "☑" if is_done else "☐"
@@ -22,18 +23,18 @@ class TaskItem(tk.Frame):
         self.check_btn = tk.Label(self, text=check_char, font=("Segoe UI", 16),
             fg=Colors.PRIMARY if is_done else "#cbd5e0", bg=Colors.BG, width=2, cursor="hand2")
         self.check_btn.pack(side="left")
-        self.check_btn.bind("<Button-1>", lambda e: self.callbacks['on_toggle'](task_data['id']))
+        self.check_btn.bind("<Button-1>", lambda e: self.callbacks['on_toggle'](task_data.id))
 
         # Task Text Label (Double click to edit)
-        self.label = tk.Label(self, text=task_data['text'], font=item_font,
+        self.label = tk.Label(self, text=task_data.description, font=item_font,
             fg=fg_color, bg=Colors.BG, anchor="w", cursor="hand2")
         self.label.pack(side="left", padx=5, fill="x", expand=True)
-        self.label.bind("<Double-Button-1>", lambda e: self.callbacks['on_edit'](task_data['id']))
+        self.label.bind("<Double-Button-1>", lambda e: self.callbacks['on_edit'](task_data.id))
 
         # Delete Button
         self.del_btn = tk.Label(self, text="✕", font=("Segoe UI", 10), fg="#cbd5e0", bg=Colors.BG, cursor="hand2")
         self.del_btn.pack(side="right", padx=5)
-        self.del_btn.bind("<Button-1>", lambda e: self.callbacks['on_delete'](task_data['id']))
+        self.del_btn.bind("<Button-1>", lambda e: self.callbacks['on_delete'](task_data.id))
 
         # Divider line
         tk.Frame(self, height=1, bg=Colors.LINE).place(relx=0, rely=0.98, relwidth=1)
@@ -93,16 +94,20 @@ class TodoModule(tk.Frame):
 
         # Render Active
         SectionHeader(self.list_area, "Tasks")
-        for t in [t for t in tasks if not t['completed']]:
+        for t in [t for t in tasks if not t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
         # Render Completed
         SectionHeader(self.list_area, "Completed")
-        for t in [t for t in tasks if t['completed']]:
+        for t in [t for t in tasks if t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
     def ui_add(self):
-        self.db.add_task(self.entry.get())
+        todo = TodoModel(
+            id=self.db._next_id,
+            description=self.entry.get()
+        )
+        self.db.add_task(todo)
         self.entry.delete(0, tk.END)
         self.render_tasks()
 
@@ -117,10 +122,11 @@ class TodoModule(tk.Frame):
 
     def ui_edit(self, tid):
         # Find current text for the dialog
-        current_task = next(t for t in self.db.get_all_tasks() if t['id'] == tid)
-        new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task['text'])
+        current_task = next(t for t in self.db.get_all_tasks() if t.id == tid)
+        new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task.description)
+        current_task.description = new_text
         if new_text:
-            self.db.update_task_text(tid, new_text)
+            self.db.update_task(current_task)
             self.render_tasks()
 
 if __name__ == "__main__":
