@@ -1,11 +1,13 @@
+import json
 from typing import Any
 
-from mcp.types import Tool, TextContent
 from .tools import tools
+from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
 from mcp.server.lowlevel import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
 from config import app
+from todo_model import TodoModel
 
 
 server = Server("Todo Server")
@@ -44,26 +46,57 @@ async def handle_list_tools() -> list[Tool]:
         )
     return tool_list
 
+# @server.call_tool()
+# async def handle_tool_call(
+#     name: str,
+#     arguments: dict[str, Any]
+# ) -> list[TextContent | None]:
+#     if name not in tools:
+#         raise ValueError(f"Unknown tool: {name}")
+    
+#     tool = tools[name]
+
+#     result = "default"
+#     try:
+#         # Invoke the tool
+#         result = await tool["handler"](arguments)
+#     except Exception as e:
+#         raise ValueError(f"Error calling tool {name}: {str(e)}")
+    
+#     return [
+#         TextContent(type="text",text=str(result))
+#     ]
+
 @server.call_tool()
 async def handle_tool_call(
     name: str,
     arguments: dict[str, Any]
-) -> list[TextContent | None]:
+) -> list[TextContent]:
     if name not in tools:
         raise ValueError(f"Unknown tool: {name}")
     
     tool = tools[name]
 
-    result = "default"
     try:
         # Invoke the tool
         result = await tool["handler"](arguments)
+        
+        # Convert result to JSON string
+        if isinstance(result, TodoModel):
+            # Single todo
+            json_str = result.model_dump_json()  # Pydantic v2
+            # json_str = result.json()  # Pydantic v1
+        elif isinstance(result, list) and all(isinstance(item, TodoModel) for item in result):
+            # List of todos
+            json_str = json.dumps([todo.model_dump() for todo in result])
+        else:
+            # Fallback to string
+            json_str = str(result)
+        
+        return [TextContent(type="text", text=json_str)]
+        
     except Exception as e:
         raise ValueError(f"Error calling tool {name}: {str(e)}")
-    
-    return [
-        TextContent(type="text",text=str(result))
-    ]
 
 async def run():
     """Run the server with lifecycle management"""
