@@ -1,9 +1,13 @@
+import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox
+from typing import Union
 
 from constants import Colors
 from todo_manager import TodoDataManager
 from todo_model import TodoModel
+from mcp_todo_client import MCPTodoClient
+from utils.todo_utils import string_to_todo
 
 class TaskItem(tk.Frame):
     """Component for a single task row."""
@@ -56,8 +60,45 @@ class TodoModule(tk.Frame):
         # Instantiate the CRUD Manager
         self.db = TodoDataManager()
 
+        # Instantiat MCPTodo client
+        self.mcp_client = MCPTodoClient()
+
+        self.loading = False
+
         self.setup_ui()
+        self.tasks = []
+        self.load_tasks()
         self.render_tasks()
+
+        
+        # Start MCP client and load initial data
+        self.after(100, self.initialize_mcp)
+
+
+    def initialize_mcp(self):
+        """Initialize MCP connection in background"""
+        self.show_status("Connecting to MCP server...")
+        
+        # Start MCP client in a thread
+        threading.Thread(target=self._connect_mcp, daemon=True).start()
+        
+    def show_status(self, message: str):
+        """Show status message in UI"""
+        self.status_label.config(text=message)
+        self.after(3000, lambda: self.status_label.config(text=""))
+
+    def _connect_mcp(self):
+        """Connect to MCP and load tasks (runs in background thread)"""
+        self.mcp_client.start()
+        
+        # Give it a moment to connect
+        import time
+        time.sleep(1)
+        
+        # Load initial tasks
+        self.after(0, self.load_tasks)      
+
+
 
     def setup_ui(self):
         # Header
@@ -78,6 +119,12 @@ class TodoModule(tk.Frame):
         self.list_area = tk.Frame(self, bg=Colors.BG)
         self.list_area.pack(fill="both", expand=True)
 
+        
+        # Status label
+        self.status_label = tk.Label(header, text="", font=("Segoe UI", 10),
+                                     fg=Colors.PRIMARY, bg=Colors.BG)
+        self.status_label.pack(side="right", padx=10)
+
     # --- UI EVENT HANDLERS (Calling the DataManager) ---
 
     def render_tasks(self):
@@ -85,7 +132,7 @@ class TodoModule(tk.Frame):
         for widget in self.list_area.winfo_children():
             widget.destroy()
 
-        tasks = self.db.get_all_tasks()
+        # tasks = self.db.get_all_tasks()
         callbacks = {
             'on_toggle': self.ui_toggle,
             'on_edit': self.ui_edit,
@@ -94,12 +141,12 @@ class TodoModule(tk.Frame):
 
         # Render Active
         SectionHeader(self.list_area, "Tasks")
-        for t in [t for t in tasks if not t.completed]:
+        for t in [t for t in self.tasks if not t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
         # Render Completed
         SectionHeader(self.list_area, "Completed")
-        for t in [t for t in tasks if t.completed]:
+        for t in [t for t in self.tasks if t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
     def ui_add(self):
@@ -129,9 +176,85 @@ class TodoModule(tk.Frame):
             self.db.update_task(current_task)
             self.render_tasks()
 
+    def _edit_task_thread(self, task_id: int, new_description: str):
+        """Background thread for editing task"""
+        # Get current completed status (you'd need to store this)
+        result = self.mcp_client.call_tool_sync("update", {
+            "id": task_id,
+            "description": new_description,
+            "completed": False  # You need actual data
+        })
+        
+        self.after(0, self.load_tasks)
+        
+    def load_tasks(self):
+        """Load tasks from MCP server"""
+        if self.loading:
+            return
+        
+        self.loading = True
+        self.show_status("Loading tasks...")
+        
+        # Run in background thread
+        threading.Thread(target=self._load_tasks_thread, daemon=True).start()        
+
+    def _load_tasks_thread(self):
+        """Background thread for loading tasks"""
+        try:
+            # Get tools list (optional)
+            tools = self.mcp_client.list_tools_sync()
+            print(f"Available tools: {tools}")
+            
+            # Get tasks
+            json_str = self.mcp_client.call_tool_sync("list", {})
+            print(json_str)
+            result = string_to_todo(json_str)
+            self.tasks = result
+            self.after(0, self._update_tasks, result)
+        finally:
+            self.loading = False
+
+
+    def _update_tasks(self, tid):
+        # Find current text for the dialog
+        current_task = next(t for t in self.tasks if t.id == tid)
+        new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task.description)
+        current_task.description = new_text
+        if new_text:
+            self.mcp_client.call_tool_sync("update", current_task)
+            self.render_tasks()
+
+
+    def _add_task_thread(self):
+        todo = TodoModel(
+            id=self.db._next_id,
+            description=self.entry.get()
+        )
+        self.mcp_client.call_tool_sync("add", todo)
+        self.entry.delete(0, tk.END)
+        self.render_tasks()
+    
+
+    def ui_delete(self, tid):
+        if messagebox.askyesno("Delete", "Delete this task?"):
+            self.mcp_client.call_tool_sync("delete", tid)
+            self.render_tasks()
+
+    def destroy(self):
+        """Clean up MCP client when closing"""
+        self.mcp_client.stop()
+        super().destroy()
+
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Clean CRUD Architecture")
     root.geometry("400x700")
-    TodoModule(root)
+    # Handle window close
+    def on_closing():
+        if hasattr(app, 'destroy'):
+            app.destroy()
+        root.destroy()
+    
+    app = TodoModule(root)
+    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
