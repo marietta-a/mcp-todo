@@ -9,7 +9,7 @@ class TodoDataManager:
         # Seed initial data
         self.add_task(TodoModel(id=self._next_id, description="Buy groceries", completed=False))
         self.add_task(TodoModel(id=self._next_id, description="Call mom", completed=False))
-        self.add_task(TodoModel(id=self._next_id, description="Walk the dog", completed=True))
+        self.add_task(TodoModel(id=self._next_id, description="Walk the dog", completed=False))
 
     def add_task(self, todo: TodoModel):
         """CREATE: Adds a new task."""
@@ -35,12 +35,13 @@ class TodoDataManager:
 
     def toggle_task_status(self, task_id):
         """UPDATE: Toggles completed status."""
+        print(task_id)
         for task in self._tasks:
             if task.id == task_id:
                 task.completed = not task.completed
                 return True
         return False
 
-    def delete_task(self, task_id):
+    def delete_task(self, task_id: int):
         """DELETE: Removes a task."""
         self._tasks = [t for t in self._tasks if t.id != task_id]

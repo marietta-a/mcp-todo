@@ -8,7 +8,7 @@ async def delete_handler(args):
         raise ValueError(f"Invalid input: {str(e)}")
     
     """Handle task delete"""
-    return db.delete_task(input_model)
+    return db.delete_task(input_model.id)
 
 delete = {
     "name": "delete",
