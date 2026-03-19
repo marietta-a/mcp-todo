@@ -5,7 +5,7 @@
 # Instead, we store tasks in a plain Python list in memory.
 # This keeps things simple and easy to understand.
 
-from todo_model import TodoModel  # Import our task data model
+from shared.todo_model import TodoModel  # Import our task data model
 
 
 class TodoDataManager:

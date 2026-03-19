@@ -20,7 +20,7 @@ from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
 from mcp.server.lowlevel import Server, NotificationOptions
 from mcp.server.models import InitializationOptions
-from todo_model import TodoModel
+from shared.todo_model import TodoModel
 
 
 # Create the MCP server instance with a human-readable name.

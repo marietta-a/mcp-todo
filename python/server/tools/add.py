@@ -8,8 +8,8 @@
 #   - an input_schema: the shape of data the tool expects (validated by Pydantic)
 #   - a handler    : the async function that actually runs when the tool is called
 
-from todo_model import TodoModel  # The data model for a single to-do task
-from config import db             # Our shared in-memory database instance
+from shared.todo_model import TodoModel  # The data model for a single to-do task
+from server.config import db             # Our shared in-memory database instance
 
 
 async def add_handler(args) -> TodoModel:

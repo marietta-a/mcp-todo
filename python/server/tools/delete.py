@@ -5,7 +5,7 @@
 # It only needs the task's `id` as input, so we use the lightweight IDSchema
 # instead of the full TodoModel.
 
-from config import db           # Our shared in-memory database instance
+from server.config import db           # Our shared in-memory database instance
 from .schema import IDSchema    # A minimal schema that only contains an `id` field
 
 

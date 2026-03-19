@@ -5,8 +5,8 @@
 # It expects a full TodoModel as input (id + description + completed),
 # finds the matching task in the database, and overwrites its fields.
 
-from config import db           # Our shared in-memory database instance
-from todo_model import TodoModel # The full task data model
+from server.config import db           # Our shared in-memory database instance
+from shared.todo_model import TodoModel # The full task data model
 
 
 async def update_handler(args) -> bool:

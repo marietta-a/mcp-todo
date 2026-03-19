@@ -4,8 +4,8 @@
 # The list tool retrieves all tasks currently stored in the database.
 # It takes no input (hence EmptySchema), and returns a list of TodoModel objects.
 
-from todo_model import TodoModel    # The data model for a single task
-from config import db               # Our shared in-memory database instance
+from shared.todo_model import TodoModel    # The data model for a single task
+from server.config import db               # Our shared in-memory database instance
 from .schema import EmptySchama     # A schema with no fields — this tool needs no input
 
 

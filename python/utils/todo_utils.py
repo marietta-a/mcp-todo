@@ -1,7 +1,7 @@
 # todo_utils.py
 import json
 from typing import List, Union
-from todo_model import TodoModel
+from shared.todo_model import TodoModel
 
 def string_to_todo(text: str) -> Union[TodoModel, List[TodoModel], None]:
     """
