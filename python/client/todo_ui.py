@@ -11,18 +11,15 @@
 #   and `mcp_client` to sync changes through the MCP server — showing how a real
 #   client-server MCP workflow operates.
 
-import json
 import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox
-from typing import Union
 
-from constants import Colors           # Color constants for consistent theming
-from todo_manager import TodoDataManager
-from todo_model import TodoModel
-from mcp_todo_client import MCPTodoClient
+from client.constants import Colors           # Color constants for consistent theming
+from shared.todo_model import TodoModel
+from client.mcp_todo_client import MCPTodoClient
 from utils.todo_utils import string_to_todo  # Helper to parse JSON string → list of TodoModel
-from config import db                   # Shared database instance
+from server.config import db                   # Shared database instance
 
 
 # ─────────────────────────────────────────────
@@ -209,7 +206,7 @@ class TodoModule(tk.Frame):
 
         # Define callback functions passed down to each TaskItem
         callbacks = {
-            'on_toggle': self.ui_toggle,
+            'on_toggle': self._ui_toggle,
             'on_edit': self._update_tasks,
             'on_delete': self._delete_task
         }
@@ -236,7 +233,7 @@ class TodoModule(tk.Frame):
         self.entry.delete(0, tk.END)
         self.render_tasks()
 
-    def ui_toggle(self, tid):
+    def _ui_toggle(self, tid):
         """
         Toggles a task's completed status.
 
@@ -248,9 +245,8 @@ class TodoModule(tk.Frame):
         current_task = next((t for t in self.tasks if t.id == tid), None)
         if current_task:
             current_task.completed = not current_task.completed
-            task_str = current_task.model_dump_json()
             # Sync the updated task to the MCP server
-            self.mcp_client.call_tool_sync("update", task_str)
+            self.mcp_client.call_tool_sync("update", current_task.__dict__)
             self.render_tasks()
 
     def ui_delete(self, tid):
@@ -354,6 +350,8 @@ class TodoModule(tk.Frame):
 
         # Reload tasks from the server to confirm the add succeeded
         self._load_tasks_thread()
+        print("in add function")
+        print(self.tasks)
 
     def _delete_task(self, tid: int):
         """
@@ -383,7 +381,7 @@ class TodoModule(tk.Frame):
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Clean CRUD Architecture")
-    root.geometry("400x700")
+    root.geometry("500x500")
 
     def on_closing():
         """Ensures the MCP client is stopped before the window closes."""

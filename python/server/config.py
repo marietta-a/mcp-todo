@@ -1,7 +1,7 @@
 from mcp.server import FastMCP
 from pydantic import AnyHttpUrl
 import os
-from todo_manager import TodoDataManager
+from server.todo_manager import TodoDataManager
 
 settings = {
     "host": "localhost",
