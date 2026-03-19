@@ -8,6 +8,9 @@ A beginner-friendly Todo application built to teach the **Model Context Protocol
 
 - The **server** hosts tools like `add`, `update`, `delete`, and `list`
 - The **client** connects to the server and calls those tools by name
-- The **UI** is a Tkinter desktop app that uses the client to perform all task operations
+- The **UI** uses the client to perform all task operations
 
 ---
+
+## Runtimes
+- [Python](python/README.md)
