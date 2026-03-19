@@ -1,3 +1,4 @@
+import json
 import threading
 import tkinter as tk
 from tkinter import simpledialog, messagebox
@@ -8,6 +9,7 @@ from todo_manager import TodoDataManager
 from todo_model import TodoModel
 from mcp_todo_client import MCPTodoClient
 from utils.todo_utils import string_to_todo
+from config import db
 
 class TaskItem(tk.Frame):
     """Component for a single task row."""
@@ -58,17 +60,15 @@ class TodoModule(tk.Frame):
         self.pack(fill="both", expand=True)
         
         # Instantiate the CRUD Manager
-        self.db = TodoDataManager()
-
+        self.db = db
         # Instantiat MCPTodo client
         self.mcp_client = MCPTodoClient()
 
         self.loading = False
 
         self.setup_ui()
-        self.tasks = []
+        self.tasks: list[TodoModel] = []
         self.load_tasks()
-        self.render_tasks()
 
         
         # Start MCP client and load initial data
@@ -111,9 +111,9 @@ class TodoModule(tk.Frame):
         input_frame.pack(fill="x")
         self.entry = tk.Entry(input_frame, font=("Segoe UI", 12), relief="flat", highlightthickness=1, highlightbackground=Colors.LINE)
         self.entry.pack(side="left", fill="x", expand=True, ipady=8, padx=(0, 10))
-        self.entry.bind("<Return>", lambda e: self.ui_add())
+        self.entry.bind("<Return>", lambda e: self._add_task_thread())
 
-        tk.Button(input_frame, text="+ Add", command=self.ui_add, bg=Colors.PRIMARY, fg="white", relief="flat", padx=15).pack(side="right")
+        tk.Button(input_frame, text="+ Add", command=self._add_task_thread, bg=Colors.PRIMARY, fg="white", relief="flat", padx=15).pack(side="right")
 
         # Task Containers
         self.list_area = tk.Frame(self, bg=Colors.BG)
@@ -135,18 +135,19 @@ class TodoModule(tk.Frame):
         # tasks = self.db.get_all_tasks()
         callbacks = {
             'on_toggle': self.ui_toggle,
-            'on_edit': self.ui_edit,
-            'on_delete': self.ui_delete
+            'on_edit': self._update_tasks,
+            'on_delete': self._delete_task
         }
 
-        # Render Active
-        SectionHeader(self.list_area, "Tasks")
-        for t in [t for t in self.tasks if not t.completed]:
+        if self.tasks.__len__() > 0:
+          # Render Active
+          SectionHeader(self.list_area, "Tasks")
+          for t in [t for t in self.tasks if not t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
-        # Render Completed
-        SectionHeader(self.list_area, "Completed")
-        for t in [t for t in self.tasks if t.completed]:
+          # Render Completed
+          SectionHeader(self.list_area, "Completed")
+          for t in [t for t in self.tasks if t.completed]:
             TaskItem(self.list_area, t, callbacks)
 
     def ui_add(self):
@@ -159,8 +160,12 @@ class TodoModule(tk.Frame):
         self.render_tasks()
 
     def ui_toggle(self, tid):
-        self.db.toggle_task_status(tid)
-        self.render_tasks()
+        current_task = next((t for t in self.tasks if t.id == tid), None)
+        if current_task:
+          current_task.completed = not current_task.completed
+          task_str = current_task.model_dump_json()
+          self.mcp_client.call_tool_sync("update", task_str)
+          self.render_tasks()
 
     def ui_delete(self, tid):
         if messagebox.askyesno("Delete", "Delete this task?"):
@@ -202,27 +207,28 @@ class TodoModule(tk.Frame):
         """Background thread for loading tasks"""
         try:
             # Get tools list (optional)
-            tools = self.mcp_client.list_tools_sync()
-            print(f"Available tools: {tools}")
-            
+            # tools = self.mcp_client.list_tools_sync()
+            # print(tools)
             # Get tasks
             json_str = self.mcp_client.call_tool_sync("list", {})
-            print(json_str)
             result = string_to_todo(json_str)
-            self.tasks = result
-            self.after(0, self._update_tasks, result)
+            if isinstance(result, list):
+              self.tasks = result
+            #   self.after(0, self._update_tasks, result)
+              self.render_tasks()
         finally:
             self.loading = False
 
 
     def _update_tasks(self, tid):
         # Find current text for the dialog
-        current_task = next(t for t in self.tasks if t.id == tid)
-        new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task.description)
-        current_task.description = new_text
-        if new_text:
-            self.mcp_client.call_tool_sync("update", current_task)
-            self.render_tasks()
+        current_task = next((t for t in self.tasks if t.id == tid), None)
+        if current_task:
+          new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task.description)
+          current_task.description = new_text
+          if new_text:
+            self.mcp_client.call_tool_sync("update", current_task.__dict__)
+            self._load_tasks_thread()
 
 
     def _add_task_thread(self):
@@ -230,15 +236,19 @@ class TodoModule(tk.Frame):
             id=self.db._next_id,
             description=self.entry.get()
         )
-        self.mcp_client.call_tool_sync("add", todo)
+        
+        self.mcp_client.call_tool_sync("add", todo.__dict__)
         self.entry.delete(0, tk.END)
-        self.render_tasks()
+        self._load_tasks_thread()
     
 
-    def ui_delete(self, tid):
+    def _delete_task(self, tid: int):
         if messagebox.askyesno("Delete", "Delete this task?"):
-            self.mcp_client.call_tool_sync("delete", tid)
-            self.render_tasks()
+            record = {
+                "id": tid
+            }
+            self.mcp_client.call_tool_sync("delete", record)
+            self._load_tasks_thread()
 
     def destroy(self):
         """Clean up MCP client when closing"""
