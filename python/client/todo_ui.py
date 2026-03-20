@@ -1,15 +1,5 @@
 # todo_ui.py
 # This is the UI layer of the application — built with Tkinter (Python's built-in GUI toolkit).
-#
-# ARCHITECTURE OVERVIEW:
-#   - TodoDataManager (todo_manager.py) : handles in-memory data (the "Model")
-#   - MCPTodoClient (mcp_todo_client.py): talks to the MCP server for persistent operations
-#   - TodoModule (this file)            : the UI that ties everything together (the "View + Controller")
-#
-# WHY BOTH db AND mcp_client?
-#   The app uses `db` (TodoDataManager) for quick local state during rendering,
-#   and `mcp_client` to sync changes through the MCP server — showing how a real
-#   client-server MCP workflow operates.
 
 import threading
 import tkinter as tk
@@ -226,13 +216,6 @@ class TodoModule(tk.Frame):
     # UI EVENT HANDLERS
     # ─────────────────────────────────────────────
 
-    def ui_add(self):
-        """Adds a task using the local database only (not MCP). Used for quick local testing."""
-        todo = TodoModel(id=self.db._next_id, description=self.entry.get())
-        self.db.add_task(todo)
-        self.entry.delete(0, tk.END)
-        self.render_tasks()
-
     def _ui_toggle(self, tid):
         """
         Toggles a task's completed status.
@@ -248,30 +231,6 @@ class TodoModule(tk.Frame):
             # Sync the updated task to the MCP server
             self.mcp_client.call_tool_sync("update", current_task.__dict__)
             self.render_tasks()
-
-    def ui_delete(self, tid):
-        """Deletes a task using the local database (not MCP). Kept for reference."""
-        if messagebox.askyesno("Delete", "Delete this task?"):
-            self.db.delete_task(tid)
-            self.render_tasks()
-
-    def ui_edit(self, tid):
-        """Edits a task using the local database (not MCP). Kept for reference."""
-        current_task = next(t for t in self.db.get_all_tasks() if t.id == tid)
-        new_text = simpledialog.askstring("Edit", "Update task:", initialvalue=current_task.description)
-        current_task.description = new_text
-        if new_text:
-            self.db.update_task(current_task)
-            self.render_tasks()
-
-    def _edit_task_thread(self, task_id: int, new_description: str):
-        """Background thread version of edit — calls MCP then reloads tasks."""
-        result = self.mcp_client.call_tool_sync("update", {
-            "id": task_id,
-            "description": new_description,
-            "completed": False  # TODO: pass the actual completed status
-        })
-        self.after(0, self.load_tasks)
 
     # ─────────────────────────────────────────────
     # MCP DATA OPERATIONS
@@ -350,8 +309,6 @@ class TodoModule(tk.Frame):
 
         # Reload tasks from the server to confirm the add succeeded
         self._load_tasks_thread()
-        print("in add function")
-        print(self.tasks)
 
     def _delete_task(self, tid: int):
         """
@@ -380,7 +337,7 @@ class TodoModule(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Clean CRUD Architecture")
+    root.title("MCP TODO Application (CRUD)")
     root.geometry("500x500")
 
     def on_closing():
