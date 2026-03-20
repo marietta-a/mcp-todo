@@ -26,7 +26,7 @@ from mcp.shared.context import RequestContext
 # The client will automatically start this process and connect to it.
 server_params = StdioServerParameters(
     command="python",
-    args=["-m", "server.todo_service"]  # Runs the server module
+    args=["-m", "server.todo_server"]  # Runs the server module
 )
 
 
