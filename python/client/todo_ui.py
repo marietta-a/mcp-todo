@@ -337,7 +337,7 @@ class TodoModule(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Clean CRUD Architecture")
+    root.title("MCP TODO Application (CRUD)")
     root.geometry("500x500")
 
     def on_closing():
